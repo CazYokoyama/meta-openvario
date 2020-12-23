@@ -19,6 +19,10 @@ DEPENDS = " \
         imagemagick-native \
         libinput \
         lua \
+        tiff \
+        libgeotiff \
+        netcdf-c \
+        netcdf-cxx \
         udev \
         ttf-dejavu \
         jpeg \
@@ -41,13 +45,15 @@ S = "${WORKDIR}/git"
 LC_LOCALE_PATH = "/usr/share/locale"
 
 SRC_URI = " \
-    git://github.com/XCSoar/XCSoar.git;protocol=git;tag=v${PV} \
+    git://github.com/CazYokoyama/XCSoar.git;protocol=git;branch=v${PV};rev=v${PV} \
     file://0005-Adapted-toolchain-prefixes-for-cross-compile_6.8.patch \
     file://0001-Adapted-Flags-for-compiler-and-linker-for-cross-comp.patch \
     file://0001-Disable-warnings-as-errors.patch \
     file://0001-avoid-tail-cut.patch \
+    file://0001_no_version_lua.patch \
     file://0006-Include-header-containing-errno-for-6.8.patch \
     file://0007-Disable-touch-screen-auto-detection.patch \
+    file://0008-adapt-netcdf-libgeotiff.patch \
     file://ov-xcsoar.conf \
 "
 
@@ -69,7 +75,7 @@ do_compile() {
     echo '${WORKDIR}'
     cd ${WORKDIR}/git
     # export CPATH=${D}/usr/include
-    make -j$(nproc) DEBUG=n DEBUG_GLIBCXX=n ENABLE_MESA_KMS=y GEOTIFF=n
+    make -j$(nproc) DEBUG=n DEBUG_GLIBCXX=n ENABLE_MESA_KMS=y
 }
 
 do_install() {

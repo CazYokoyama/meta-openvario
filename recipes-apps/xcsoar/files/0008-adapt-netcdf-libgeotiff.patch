@@ -1,0 +1,98 @@
+diff --git a/build/netcdf.mk b/build/netcdf.mk
+index e2f6850d1c..d35a5422d2 100644
+--- a/build/netcdf.mk
++++ b/build/netcdf.mk
+@@ -1,10 +1,4 @@
+ NETCDF = y
+ 
+-ifneq ($(TARGET),ANDROID)
+-$(eval $(call pkg-config-library,NETCDF,netcdf-cxx4))
+-$(eval $(call link-library,netcdfcpp,NETCDF))
+-NETCDF_LDLIBS = -lnetcdf_c++4 -lnetcdf
+-else
+-NETCDF_LDLIBS += -l:libnetcdf_c++.a -l:libnetcdf.a
+-endif
++NETCDF_LDLIBS = -lnetcdf_c++ -lnetcdf
+ LDLIBS += $(NETCDF_LDLIBS)
+diff --git a/src/Weather/Skysight/CDFDecoder.cpp b/src/Weather/Skysight/CDFDecoder.cpp
+index b93c870fd3..e4243f960a 100644
+--- a/src/Weather/Skysight/CDFDecoder.cpp
++++ b/src/Weather/Skysight/CDFDecoder.cpp
+@@ -23,15 +23,9 @@ Copyright_License {
+ 
+ #include "CDFDecoder.hpp"
+ 
+-#ifdef ANDROID
+ #include <netcdfcpp.h>
+ #include <geotiffio.h>
+ #include <xtiffio.h>
+-#else
+-#include <netcdf>
+-#include <geotiff/geotiffio.h>
+-#include <geotiff/xtiffio.h>
+-#endif
+ 
+ #include "SkysightAPI.hpp"
+ #include "OS/FileUtil.hpp"
+@@ -83,33 +77,19 @@ bool CDFDecoder::DecodeSuccess()
+ 
+ bool CDFDecoder::Decode()
+ {
+-#ifdef ANDROID
+   NcFile data_file(path.c_str(), NcFile::FileMode::ReadOnly);
+   if (!data_file.is_valid())
+     return DecodeError();
+ 
+   size_t lat_size = data_file.get_dim("lat")->size();
+   size_t lon_size = data_file.get_dim("lon")->size();
+-#else
+-  netCDF::NcFile data_file(path.c_str(), netCDF::NcFile::read);
+-  if (data_file.isNull())
+-    return DecodeError();
+-
+-  size_t lat_size = data_file.getDim("lat").getSize();
+-  size_t lon_size = data_file.getDim("lon").getSize();
+-#endif
+ 
+   AllocatedArray<double>lat_vals(lat_size);
+   AllocatedArray<double>lon_vals(lon_size);
+   AllocatedArray<double>var_vals(lat_size * lon_size);
+ 
+-#ifdef ANDROID
+   data_file.get_var("lat")->get(&lat_vals[0], lat_size);
+   data_file.get_var("lon")->get(&lon_vals[0], lon_size);
+-#else
+-  data_file.getVar("lat").getVar(&lat_vals[0]);
+-  data_file.getVar("lon").getVar(&lon_vals[0]);
+-#endif
+ 
+   double lat_min = lat_vals[lat_size - 1];
+   double lat_max = lat_vals[0];
+@@ -118,7 +98,6 @@ bool CDFDecoder::Decode()
+   double lon_scale = (lon_max - lon_min) / lon_size;
+   double lat_scale = (lat_max - lat_min) / lat_size;
+ 
+-#ifdef ANDROID
+   NcVar *data_var = data_file.get_var(data_varname.c_str());
+   if (!data_var->is_valid())
+     return DecodeError();
+@@ -127,19 +106,6 @@ bool CDFDecoder::Decode()
+   double fill_value = data_var->get_att("_FillValue")->values()->as_double(0);
+   float var_offset = data_var->get_att("add_offset")->values()->as_float(0);
+   float var_scale = data_var->get_att("scale_factor")->values()->as_float(0);
+-#else
+-  netCDF::NcVar data_var = data_file.getVar(data_varname);
+-  if (data_var.isNull())
+-    return DecodeError();
+-
+-  data_var.getVar(&var_vals[0]);
+-
+-  double fill_value;
+-  float var_offset, var_scale;
+-  data_var.getAtt("_FillValue").getValues(&fill_value);
+-  data_var.getAtt("add_offset").getValues(&var_offset);
+-  data_var.getAtt("scale_factor").getValues(&var_scale);
+-#endif
+ 
+   //Generate GeoTiff
+   TIFF *tf = XTIFFOpen(output_path.c_str(), "w");
